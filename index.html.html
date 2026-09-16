@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Mindmap (Editor) — Biên bản cuộc họp TV Group</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-elixir@5/dist/MindElixir.css">
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #fafbfc;
+      overflow: hidden;
+    }
+
+    #toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      padding: 8px 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      max-width: calc(100vw - 40px);
+    }
+
+    #toolbar h1 {
+      font-size: 14px;
+      margin: 0 8px 0 0;
+      color: #1f2328;
+      font-weight: 600;
+    }
+
+    #toolbar .sep {
+      width: 1px;
+      height: 18px;
+      background: #d0d7de;
+      margin: 0 2px;
+    }
+
+    #toolbar button,
+    #toolbar label.btn {
+      border: 1px solid #d0d7de;
+      background: #fff;
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #1f2328;
+    }
+
+    #toolbar button:hover,
+    #toolbar label.btn:hover {
+      background: #f3f4f6;
+    }
+
+    #toolbar button.primary {
+      background: #0969da;
+      color: #fff;
+      border-color: #0969da;
+    }
+
+    #toolbar button.primary:hover {
+      background: #0860c9;
+    }
+
+    #toolbar button.danger {
+      color: #cf222e;
+      border-color: #cf222e;
+    }
+
+    #toolbar button.danger:hover {
+      background: #fff5f5;
+    }
+
+    #status {
+      color: #57606a;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+
+    #status.error {
+      color: #cf222e;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      background: #fafbfc;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #57606a;
+      max-width: calc(100vw - 40px);
+      line-height: 1.6;
+    }
+
+    #hint kbd {
+      background: #f3f4f6;
+      border: 1px solid #d0d7de;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="toolbar">
+    <h1>TV Group — Mindmap Biên bản cuộc họp</h1>
+    <button id="btn-expand">Mở tất cả</button>
+    <button id="btn-collapse-1">Thu về cấp 1</button>
+    <button id="btn-collapse-2">Thu về cấp 2</button>
+    <button id="btn-fit">Vừa khung</button>
+    <span class="sep"></span>
+    <button id="btn-export-json" class="primary">Xuất JSON</button>
+    <button id="btn-export-md">Xuất Markdown</button>
+    <button id="btn-export-word">Xuất Word (A4)</button>
+    <label class="btn" for="file-import">Nhập JSON</label>
+    <input id="file-import" type="file" accept=".json,application/json" style="display:none">
+    <span class="sep"></span>
+    <button id="btn-reset" class="danger">Khôi phục bản gốc</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="hint">
+    <b>Sửa text:</b> double-click hoặc <kbd>F2</kbd> ·
+    <b>Thêm nhánh con:</b> <kbd>Tab</kbd> (hoặc nhấn dấu "+") ·
+    <b>Thêm nhánh cùng cấp:</b> <kbd>Enter</kbd> ·
+    <b>Xoá:</b> <kbd>Delete</kbd> ·
+    <b>Kéo-thả:</b> giữ chuột & kéo node sang parent khác ·
+    <b>Undo/Redo:</b> <kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd> ·
+    Nội dung trong dấu <b>{...}</b> chỉ là gợi ý mặc định — gõ đè lên để nhập nội dung thật ·
+    Mục <b>II, III, IV, V, VI</b> đã có sẵn 1 nhánh ví dụ — bấm nút <b>+/-</b> bên node để xem,
+    sửa nội dung ví dụ đó hoặc bôi đen chọn nó rồi nhấn <kbd>Enter</kbd> để nhân thêm dòng mới cùng cấu trúc ·
+    Mục <b>III</b>: mỗi nội dung thảo luận có 1 nhánh con ghi <i>Kết luận</i> ·
+    Mục <b>VI</b>: mỗi việc cần làm có các nhánh con "Người thực hiện:", "Thời hạn:",
+    "Kết quả cần có:", "Phê duyệt:" — giữ đúng tiền tố này để xuất đúng cột Word ·
+    <b>Auto-save</b> sau mỗi thao tác.
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mind-elixir@5/dist/MindElixir.iife.js"></script>
+  <script>
+    const STORAGE_KEY = 'tvgroup-mom-mindmap-v2';
+    // Tăng số này mỗi khi cấu trúc INITIAL_DATA hoặc logic gợi ý mặc định thay đổi
+    // đáng kể — dữ liệu đã lưu trong trình duyệt với số phiên bản cũ sẽ tự động
+    // bị bỏ qua và nạp lại mẫu mới, người dùng không cần tự bấm "Khôi phục bản gốc".
+    const SCHEMA_VERSION = 3;
+
+    // ===== Cấu hình các "trường dữ liệu" cố định (tương ứng thẻ <<tag>> trong mẫu Word) =====
+    // id: id cố định của node trong cây mindmap dùng để tra cứu khi xuất Word
+    // label: tiền tố hiển thị trong cây (giúp người dùng biết đây là trường gì)
+    // def: nội dung gợi ý mặc định, đặt trong dấu {...} — người dùng gõ đè lên để nhập thật
+    const FIELD_CONFIG = {
+      noidunghop: { id: 'f_noidunghop', label: 'Nội dung cuộc họp: ', def: '{Nội dung / chủ đề chính của cuộc họp}' },
+      tencuochop: { id: 'f_tencuochop', label: 'Tên cuộc họp: ', def: '{Họp định kỳ công ty}' },
+      thoigian: { id: 'f_thoigian', label: 'Thời gian: ', def: '{..h...-...h..., ………, ngày …./…./2026}' },
+      hinhthuc: { id: 'f_hinhthuc', label: 'Hình thức: ', def: '{Họp trực tiếp}' },
+      chutri: { id: 'f_thanhphan1', label: '', def: '- Chủ trì: {……………………}' },
+      thuky: { id: 'f_thanhphan2', label: '', def: '- Thư ký: {……………………}' },
+      thanhvien: { id: 'f_thanhphan3', label: '', def: '- Thành viên: {……………………}' },
+      nguoigibb: { id: 'f_nguoigibb', label: '', def: '{Họ và tên người ghi biên bản}' },
+      daidiencty: { id: 'f_daidiencty', label: '', def: '{Họ và tên đại diện công ty}' }
+    };
+    function fnode(tag, idOverride) {
+      const c = FIELD_CONFIG[tag];
+      return { id: idOverride || c.id, topic: c.label + c.def };
+    }
+
+    // ===== Dữ liệu khởi tạo =====
+    // Nhánh chính (cấp 1): các mục lớn I..VII — cố định, không đổi.
+    // Nhánh nhỏ hơn (mục tiêu, nội dung thảo luận, nội dung đã chốt, vấn đề mở,
+    // việc cần làm...) để trống — người dùng tự tạo bằng cách nhấn dấu "+" khi cần.
+    // Riêng mục I và VII là các trường thông tin đơn lẻ, cố định sẵn của biểu mẫu
+    // nên được khởi tạo sẵn với nội dung gợi ý {...}.
+    const INITIAL_DATA = {
+      nodeData: {
+        id: 'root',
+        topic: 'TV Group',
+        children: [
+          {
+            id: 's1', topic: 'I. THÔNG TIN CUỘC HỌP', children: [
+              fnode('noidunghop'),
+              fnode('tencuochop'),
+              fnode('thoigian'),
+              fnode('hinhthuc'),
+              {
+                id: 'f_thanhphan', topic: 'Thành phần tham dự', children: [
+                  fnode('chutri'),
+                  fnode('thuky'),
+                  fnode('thanhvien')
+                ]
+              }
+            ]
+          },
+          {
+            id: 's2', topic: 'II. MỤC TIÊU CUỘC HỌP', children: [
+              { id: 'ex_g1', topic: '{Nhập mục tiêu...}' }
+            ]
+          },
+          {
+            id: 's3', topic: 'III. NỘI DUNG THẢO LUẬN', children: [
+              {
+                id: 'ex_d1', topic: '{Nhập nội dung thảo luận...}', children: [
+                  { id: 'ex_d1k', topic: '{Nhập kết luận...}' }
+                ]
+              }
+            ]
+          },
+          {
+            id: 's4', topic: 'IV. CÁC NỘI DUNG ĐÃ CHỐT', children: [
+              { id: 'ex_c1', topic: '{Nhập nội dung đã chốt...}' }
+            ]
+          },
+          {
+            id: 's5', topic: 'V. VẤN ĐỀ CÒN MỞ', children: [
+              { id: 'ex_v1', topic: '{Nhập vấn đề còn mở...}' }
+            ]
+          },
+          {
+            id: 's6', topic: 'VI. VIỆC TIẾP THEO CẦN THỰC HIỆN', children: [
+              {
+                id: 'ex_t1', topic: '{Nhập nội dung công việc...}', children: [
+                  { id: 'ex_t1a', topic: 'Người thực hiện: {...}' },
+                  { id: 'ex_t1b', topic: 'Thời hạn: {...}' },
+                  { id: 'ex_t1c', topic: 'Kết quả cần có: {...}' },
+                  { id: 'ex_t1d', topic: 'Phê duyệt: {...}' }
+                ]
+              }
+            ]
+          },
+          {
+            id: 's7', topic: 'VII. KÝ XÁC NHẬN', children: [
+              fnode('nguoigibb'),
+              fnode('daidiencty')
+            ]
+          }
+        ]
+      }
+    };
+
+    const statusEl = document.getElementById('status');
+    function setStatus(msg, isErr) {
+      statusEl.textContent = msg || '';
+      statusEl.classList.toggle('error', !!isErr);
+      if (msg && !isErr) {
+        clearTimeout(setStatus._t);
+        setStatus._t = setTimeout(() => { statusEl.textContent = ''; }, 2500);
+      }
+    }
+
+    if (typeof MindElixir === 'undefined') {
+      setStatus('Lỗi: không tải được thư viện MindElixir (cần Internet).', true);
+      throw new Error('MindElixir not loaded');
+    }
+    // v5 IIFE expose constructor as MindElixir.default
+    const MECtor = MindElixir.default || MindElixir;
+
+    let initialData;
+    try {
+      const savedRaw = localStorage.getItem(STORAGE_KEY);
+      const saved = savedRaw ? JSON.parse(savedRaw) : null;
+      // Chỉ dùng dữ liệu đã lưu nếu đúng phiên bản schema hiện tại; nếu không
+      // (file vừa được cập nhật cấu trúc/logic mới), tự động nạp lại mẫu gốc.
+      initialData = (saved && saved.__schemaVersion === SCHEMA_VERSION) ? saved : INITIAL_DATA;
+    } catch (e) {
+      console.warn('Bad localStorage data, dùng bản gốc.', e);
+      initialData = INITIAL_DATA;
+    }
+
+    const mind = new MECtor({
+      el: '#map',
+      direction: MindElixir.RIGHT,
+      editable: true,
+      contextMenu: true,
+      toolBar: true,
+      keypress: true,
+      allowUndo: true,
+      overflowHidden: false,
+      newTopicName: '{Nhập nội dung...}',
+      theme: MindElixir.THEME
+    });
+    mind.init(initialData);
+
+    let saveTimer = null;
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        try {
+          const data = mind.getData();
+          data.__schemaVersion = SCHEMA_VERSION;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          setStatus('Đã tự lưu lúc ' + new Date().toLocaleTimeString());
+        } catch (e) {
+          setStatus('Không lưu được: ' + e.message, true);
+        }
+      }, 350);
+    }
+
+    // ===== Gợi ý mặc định theo ngữ cảnh khi tạo nhánh mới (Tab/Enter/"+") =====
+    // Mặc định Mind-Elixir luôn đặt tên nhánh mới là GENERIC_DEFAULT bên dưới.
+    // Hàm này xác định nhánh mới vừa tạo thuộc mục nào (cha/ông) và đổi lại
+    // nội dung gợi ý {...} cho đúng loại dữ liệu của mục đó, để đồng bộ với
+    // các nhánh ví dụ có sẵn (Mục tiêu, Nội dung đã chốt, Vấn đề còn mở,
+    // Nội dung thảo luận/Kết luận, việc cần làm, thành viên...).
+    const GENERIC_DEFAULT = '{Nhập nội dung...}';
+    const SECTION_CHILD_DEFAULTS = {
+      s2: '{Nhập mục tiêu...}',
+      s3: '{Nhập nội dung thảo luận...}',
+      s4: '{Nhập nội dung đã chốt...}',
+      s5: '{Nhập vấn đề còn mở...}',
+      s6: '{Nhập nội dung công việc...}'
+    };
+    const KETLUAN_DEFAULT = '{Nhập kết luận...}';
+    const THANHVIEN_DEFAULT = '- Thành viên: {……………………}';
+    const VI_CYCLE_DEFAULTS = [
+      'Người thực hiện: {……………………}',
+      'Thời hạn: {……………………}',
+      'Kết quả cần có: {……………………}',
+      'Phê duyệt: {……………………}'
+    ];
+
+    function findParentOf(root, childId) {
+      for (const c of (root.children || [])) {
+        if (c.id === childId) return root;
+        const r = findParentOf(c, childId);
+        if (r) return r;
+      }
+      return null;
+    }
+
+    function contextualDefault(root, newId) {
+      const parent = findParentOf(root, newId);
+      if (!parent) return null;
+      if (SECTION_CHILD_DEFAULTS[parent.id]) return SECTION_CHILD_DEFAULTS[parent.id];
+      if (parent.id === 'f_thanhphan') return THANHVIEN_DEFAULT;
+      const grandparent = findParentOf(root, parent.id);
+      if (grandparent && grandparent.id === 's3') return KETLUAN_DEFAULT;
+      if (grandparent && grandparent.id === 's6') {
+        const used = new Set((parent.children || [])
+          .map(c => (c.topic || '').split(':')[0].trim())
+          .filter(Boolean));
+        for (const cand of VI_CYCLE_DEFAULTS) {
+          const label = cand.split(':')[0].trim();
+          if (!used.has(label)) return cand;
+        }
+        return VI_CYCLE_DEFAULTS[0];
+      }
+      return null;
+    }
+
+    function applyContextualDefault(newId) {
+      const data = mind.getData();
+      const parent = findParentOf(data.nodeData, newId);
+      if (!parent) return;
+      const suggestion = contextualDefault(data.nodeData, newId);
+      if (suggestion) {
+        const el = mind.findEle(newId);
+        if (el) mind.reshapeNode(el, { topic: suggestion });
+      }
+      // Việc cần làm mới trong mục VI: tự thêm đủ 4 nhánh con mẫu
+      // (Người thực hiện / Thời hạn / Kết quả cần có / Phê duyệt) giống việc đầu tiên,
+      // để người dùng không phải tự bấm "+" thêm từng nhánh con.
+      if (parent.id === 's6') {
+        const topicEl = mind.findEle(newId);
+        if (topicEl) {
+          VI_CYCLE_DEFAULTS.forEach((label, idx) => {
+            mind.addChild(topicEl, { id: newId + '_f' + idx, topic: label });
+          });
+          // đưa lựa chọn về lại chính nhánh "việc cần làm" vừa tạo để người dùng gõ tên việc
+          mind.selectNode(topicEl);
+        }
+      }
+    }
+
+    if (mind.bus && mind.bus.addListener) {
+      mind.bus.addListener('operation', (operation) => {
+        if (operation && operation.obj && (operation.name === 'addChild' || operation.name === 'insertSibling')) {
+          if (operation.obj.topic === GENERIC_DEFAULT) {
+            applyContextualDefault(operation.obj.id);
+          }
+        }
+        scheduleSave();
+      });
+    }
+
+    function downloadBlob(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    }
+
+    function treeToMarkdown(node, depth) {
+      depth = depth || 0;
+      const topic = (node.topic || '').replace(/\n+/g, ' ').trim();
+      let head;
+      if (depth === 0) head = '# ' + topic + '\n\n';
+      else if (depth === 1) head = '## ' + topic + '\n';
+      else head = '  '.repeat(depth - 2) + '- ' + topic + '\n';
+      const kids = (node.children || []).map(c => treeToMarkdown(c, depth + 1)).join('');
+      return head + kids + (depth === 1 ? '\n' : '');
+    }
+
+    function walk(node, fn, depth) {
+      depth = depth || 0;
+      fn(node, depth);
+      (node.children || []).forEach(c => walk(c, fn, depth + 1));
+    }
+    function setFoldAtDepth(maxOpenDepth) {
+      const data = mind.getData();
+      walk(data.nodeData, (n, d) => {
+        if (d >= maxOpenDepth) n.expanded = false;
+        else delete n.expanded;
+      });
+      mind.refresh(data);
+    }
+    function expandAll() {
+      const data = mind.getData();
+      walk(data.nodeData, n => { delete n.expanded; });
+      mind.refresh(data);
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    // ===== Xuất Word theo đúng mẫu Biên bản cuộc họp =====
+    // Nguyên tắc: <<tag>> trong mẫu Word tương ứng với một node có id cố định
+    // trong cây mindmap (xem FIELD_CONFIG) — nội dung node đó (đã bỏ phần nhãn/label)
+    // được "rót" vào đúng vị trí trong bảng Word, không phụ thuộc node đó nằm ở đâu
+    // trong cây. Các mục lặp (II, III, IV, V, VI) được liệt kê trực tiếp theo thứ tự
+    // các nhánh con hiện có của từng mục lớn.
+
+    function findNodeById(node, id) {
+      if (!node) return null;
+      if (node.id === id) return node;
+      for (const c of (node.children || [])) {
+        const r = findNodeById(c, id);
+        if (r) return r;
+      }
+      return null;
+    }
+
+    function fieldValue(root, tag) {
+      const cfg = FIELD_CONFIG[tag];
+      const node = findNodeById(root, cfg.id);
+      let t = node ? (node.topic || '') : (cfg.label + cfg.def);
+      if (cfg.label && t.startsWith(cfg.label)) t = t.slice(cfg.label.length);
+      return escapeHtml(t.trim());
+    }
+
+    function attendeesHtml(root) {
+      const parent = findNodeById(root, 'f_thanhphan');
+      const kids = (parent && parent.children) || [];
+      if (!kids.length) return escapeHtml(FIELD_CONFIG.chutri.def);
+      return kids.map(c => escapeHtml((c.topic || '').trim())).join('<br>');
+    }
+
+    function sectionHeading(root, id, fallback) {
+      const s = findNodeById(root, id);
+      return escapeHtml(s ? s.topic : fallback);
+    }
+    function sectionChildren(root, id) {
+      const s = findNodeById(root, id);
+      return (s && s.children) || [];
+    }
+
+    function buildHeader(root) {
+      const subject = fieldValue(root, 'noidunghop');
+      return '<table class="wtbl titletbl"><tr><td>'
+        + '<h1>BIÊN BẢN CUỘC HỌP</h1>'
+        + '<p class="subject">' + subject + '</p>'
+        + '</td></tr></table>';
+    }
+
+    function buildSectionI(root) {
+      const heading = sectionHeading(root, 's1', 'I. THÔNG TIN CUỘC HỌP');
+      const rows = [
+        ['Tên cuộc họp', fieldValue(root, 'tencuochop')],
+        ['Thời gian', fieldValue(root, 'thoigian')],
+        ['Hình thức', fieldValue(root, 'hinhthuc')],
+        ['Thành phần tham dự', attendeesHtml(root)]
+      ];
+      const trs = rows.map(r => '<tr><td class="lbl">' + escapeHtml(r[0]) + '</td><td>' + r[1] + '</td></tr>').join('');
+      return '<h2>' + heading + '</h2><table class="wtbl">' + trs + '</table>';
+    }
+
+    function buildSectionII(root) {
+      const heading = sectionHeading(root, 's2', 'II. MỤC TIÊU CUỘC HỌP');
+      const kids = sectionChildren(root, 's2');
+      const body = kids.length
+        ? '<ul>' + kids.map(k => '<li>' + escapeHtml((k.topic || '').trim()) + '</li>').join('') + '</ul>'
+        : '<p><em>… (chưa có mục tiêu — nhấn "+" trên nhánh II để thêm)</em></p>';
+      return '<h2>' + heading + '</h2>' + body;
+    }
+
+    function buildSectionIII(root) {
+      const heading = sectionHeading(root, 's3', 'III. NỘI DUNG THẢO LUẬN');
+      const kids = sectionChildren(root, 's3');
+      let body;
+      if (!kids.length) {
+        body = '<p><em>… (chưa có nội dung — nhấn "+" trên nhánh III để thêm)</em></p>';
+      } else {
+        body = kids.map((k, i) => {
+          const noidung = escapeHtml((k.topic || '').trim());
+          const ketluans = (k.children || []).map(c => escapeHtml((c.topic || '').trim())).filter(Boolean);
+          const ketluanHtml = ketluans.length ? ketluans.join('<br>') : '<em>…</em>';
+          return '<p><b>3.' + (i + 1) + '. ' + noidung + '</b></p>'
+            + '<p class="indent"><b>Kết luận: </b>' + ketluanHtml + '</p>';
+        }).join('');
+      }
+      return '<h2>' + heading + '</h2>' + body;
+    }
+
+    function buildKeyValueTable(root, sectionId, colHeader, fallbackHeading, numPrefix) {
+      const heading = sectionHeading(root, sectionId, fallbackHeading);
+      const kids = sectionChildren(root, sectionId);
+      const rows = kids.length
+        ? kids.map((k, i) => '<tr><td class="mcol">' + numPrefix + (i + 1) + '</td><td>' + escapeHtml((k.topic || '').trim()) + '</td></tr>').join('')
+        : '<tr><td class="mcol">' + numPrefix + '1</td><td><em>…</em></td></tr>';
+      return '<h2>' + heading + '</h2>'
+        + '<table class="wtbl"><tr><th class="mcol">Mã</th><th>' + colHeader + '</th></tr>' + rows + '</table>';
+    }
+
+    const VI_LABELS = [
+      { key: 'nguoi', prefix: 'Người thực hiện:' },
+      { key: 'thoihan', prefix: 'Thời hạn:' },
+      { key: 'ketqua', prefix: 'Kết quả cần có:' },
+      { key: 'pheduyet', prefix: 'Phê duyệt:' }
+    ];
+    function parseTaskFields(node) {
+      const out = { nguoi: '', thoihan: '', ketqua: '', pheduyet: '' };
+      (node.children || []).forEach(c => {
+        const t = (c.topic || '').trim();
+        const low = t.toLowerCase();
+        VI_LABELS.forEach(L => {
+          if (low.startsWith(L.prefix.toLowerCase())) {
+            out[L.key] = t.slice(L.prefix.length).trim();
+          }
+        });
+      });
+      return out;
+    }
+    function buildSectionVI(root) {
+      const heading = sectionHeading(root, 's6', 'VI. VIỆC TIẾP THEO CẦN THỰC HIỆN');
+      const kids = sectionChildren(root, 's6');
+      const rows = kids.length ? kids.map((k, i) => {
+        const f = parseTaskFields(k);
+        return '<tr>'
+          + '<td class="mcol">6.' + (i + 1) + '</td>'
+          + '<td>' + escapeHtml((k.topic || '').trim()) + '</td>'
+          + '<td>' + escapeHtml(f.nguoi) + '</td>'
+          + '<td>' + escapeHtml(f.thoihan) + '</td>'
+          + '<td>' + escapeHtml(f.ketqua) + '</td>'
+          + '<td></td>'
+          + '<td>' + escapeHtml(f.pheduyet) + '</td>'
+          + '</tr>';
+      }).join('') : '<tr><td class="mcol">6.1</td><td colspan="6"><em>…</em></td></tr>';
+      return '<h2>' + heading + '</h2>'
+        + '<table class="wtbl"><tr><th class="mcol">STT</th><th>Nội dung công việc</th><th>Người thực hiện</th>'
+        + '<th>Thời hạn</th><th>Kết quả cần có</th><th>Thẩm định</th><th>Phê duyệt</th></tr>' + rows + '</table>';
+    }
+
+    function buildSectionVII(root) {
+      const heading = sectionHeading(root, 's7', 'VII. KÝ XÁC NHẬN');
+      const ng = fieldValue(root, 'nguoigibb');
+      const dd = fieldValue(root, 'daidiencty');
+      return '<h2>' + heading + '</h2>'
+        + '<table class="wtbl signtbl"><tr><th>NGƯỜI GHI BIÊN BẢN</th><th>ĐẠI DIỆN CÔNG TY XÁC NHẬN</th></tr>'
+        + '<tr class="signrow"><td>' + ng + '</td><td>' + dd + '</td></tr></table>';
+    }
+
+    function buildWordDoc(rootNode) {
+      const body = buildHeader(rootNode)
+        + buildSectionI(rootNode)
+        + buildSectionII(rootNode)
+        + buildSectionIII(rootNode)
+        + buildKeyValueTable(rootNode, 's4', 'Nội dung đã chốt', 'IV. CÁC NỘI DUNG ĐÃ CHỐT', '4.')
+        + buildKeyValueTable(rootNode, 's5', 'Vấn đề', 'V. VẤN ĐỀ CÒN MỞ', '5.')
+        + buildSectionVI(rootNode)
+        + buildSectionVII(rootNode);
+      return '<!DOCTYPE html>\n'
+        + '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+        + 'xmlns:w="urn:schemas-microsoft-com:office:word" '
+        + 'xmlns="http://www.w3.org/TR/REC-html40">\n'
+        + '<head><meta charset="utf-8"><title>Biên bản cuộc họp - TV Group</title>\n'
+        + '<!--[if gte mso 9]><xml>'
+        + '<w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom>'
+        + '<w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->\n'
+        + '<style>\n'
+        + '@page WordSection1 { size: 21cm 29.7cm; margin: 2cm 2cm 2cm 2.5cm; mso-page-orientation: portrait; }\n'
+        + 'div.WordSection1 { page: WordSection1; }\n'
+        + 'body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.4; color:#1f2328; }\n'
+        + 'h1 { font-size: 16pt; text-align:center; margin:0 0 4pt 0; }\n'
+        + '.subject { text-align:center; font-weight:bold; font-size:12pt; margin:0 0 10pt 0; }\n'
+        + 'h2 { font-size: 12.5pt; color:#1f2328; margin: 14pt 0 6pt 0; }\n'
+        + 'table.wtbl { width:100%; border-collapse:collapse; margin-bottom:8pt; }\n'
+        + 'table.wtbl td, table.wtbl th { border:1px solid #444; padding:5pt 7pt; vertical-align:top; font-size:11pt; }\n'
+        + 'table.wtbl th { background:#eef2f8; font-weight:bold; text-align:center; }\n'
+        + 'table.wtbl td.lbl { width:26%; font-weight:bold; background:#f7f9fb; }\n'
+        + 'table.wtbl td.mcol, table.wtbl th.mcol { width:8%; text-align:center; }\n'
+        + 'table.titletbl, table.titletbl td { border:none; }\n'
+        + 'table.signtbl td { height:60pt; vertical-align:bottom; }\n'
+        + 'p.indent { margin-left: 20pt; }\n'
+        + 'ul { margin:4pt 0 8pt 0; padding-left:22pt; }\n'
+        + 'li { margin:2pt 0; }\n'
+        + 'em { color:#57606a; }\n'
+        + '</style></head>\n'
+        + '<body><div class="WordSection1">\n'
+        + body
+        + '\n</div></body></html>';
+    }
+
+    document.getElementById('btn-expand').onclick = () => { expandAll(); setStatus('Đã mở tất cả'); };
+    document.getElementById('btn-collapse-1').onclick = () => { setFoldAtDepth(1); setStatus('Thu về cấp 1'); };
+    document.getElementById('btn-collapse-2').onclick = () => { setFoldAtDepth(2); setStatus('Thu về cấp 2'); };
+    document.getElementById('btn-fit').onclick = () => {
+      if (mind.toCenter) mind.toCenter();
+      setStatus('Đã đưa về giữa khung');
+    };
+
+    document.getElementById('btn-export-json').onclick = () => {
+      const data = mind.getData();
+      downloadBlob(JSON.stringify(data, null, 2), 'tvgroup-bien-ban-hop.json', 'application/json');
+      setStatus('Đã xuất JSON');
+    };
+    document.getElementById('btn-export-md').onclick = () => {
+      const data = mind.getData();
+      const md = treeToMarkdown(data.nodeData, 0);
+      downloadBlob(md, 'tvgroup-bien-ban-hop.md', 'text/markdown;charset=utf-8');
+      setStatus('Đã xuất Markdown');
+    };
+    document.getElementById('btn-export-word').onclick = () => {
+      const data = mind.getData();
+      const doc = buildWordDoc(data.nodeData);
+      // BOM giúp Word phát hiện UTF-8 khi mở file .doc
+      const blob = '\uFEFF' + doc;
+      downloadBlob(blob, 'tvgroup-bien-ban-hop.doc', 'application/msword;charset=utf-8');
+      setStatus('Đã xuất Word (A4 dọc)');
+    };
+    document.getElementById('file-import').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const json = JSON.parse(ev.target.result);
+          const data = json.nodeData ? json : { nodeData: json };
+          mind.refresh(data);
+          scheduleSave();
+          setStatus('Đã nhập JSON');
+        } catch (err) {
+          setStatus('File JSON không hợp lệ: ' + err.message, true);
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file, 'utf-8');
+    };
+    document.getElementById('btn-reset').onclick = () => {
+      if (!confirm('Khôi phục mẫu Biên bản cuộc họp gốc (trống)? Mọi chỉnh sửa hiện tại sẽ mất.')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      mind.refresh(JSON.parse(JSON.stringify(INITIAL_DATA)));
+      setStatus('Đã khôi phục bản gốc');
+    };
+
+    // Mặc định khi mở: thu về cấp 1 + đưa về giữa khung
+    // (trạng thái đã thu/mở không lưu — nội dung sửa thì có lưu qua localStorage)
+    function fitToView() {
+      if (typeof mind.toCenter === 'function') mind.toCenter();
+      // Reset scale về 1 nếu API hỗ trợ
+      if (typeof mind.scaleVal !== 'undefined') {
+        try { mind.scaleVal = 1; mind.map && (mind.map.style.transform = 'scale(1)'); } catch (e) { }
+      }
+    }
+    setTimeout(() => {
+      setFoldAtDepth(1);
+      // chờ render xong rồi mới center
+      requestAnimationFrame(() => requestAnimationFrame(fitToView));
+    }, 60);
+
+    setStatus('Sẵn sàng — ' + (initialData === INITIAL_DATA ? 'đang xem mẫu gốc' : 'đã nạp bản đã sửa'));
+  </script>
+</body>
+
+</html>
